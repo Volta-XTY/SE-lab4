@@ -125,3 +125,10 @@ int GenerateInput::_parseInt(char *start, size_t max_len){
     }
     return a;
 }
+
+GenerateInput::~GenerateInput(){
+    cout<<"GenerateInput::~GenerateInput()\n";
+    if(system(("rm "+_inputPath.string()).c_str()) != 0){
+        cerr << "should not reach here!\n";
+    }
+}

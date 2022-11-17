@@ -1,3 +1,6 @@
+#ifndef __GENERATE_INPUT__
+#define __GENERATE_INPUT__
+
 #include<iostream>
 #include<fstream>
 #include<string>
@@ -27,4 +30,7 @@ class GenerateInput{
 
         // Generate one test case.
         void Generate();
+        ~GenerateInput();
 };
+
+#endif
