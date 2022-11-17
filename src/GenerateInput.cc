@@ -4,12 +4,11 @@ using namespace std;
 namespace fs = std::filesystem;
 
 GenerateInput::GenerateInput(const fs::path &test) : 
-    inputSpec{},
-    inputPath{test/"input.in"}
+    _inputSpec{},
+    _inputPath{test/"input.in"}
 {
-    fs::create_directory(inputPath);
     for(auto const &entry : fs::directory_iterator{test}){
-        if(entry.path().filename().compare("stdin_format.txt"){
+        if(entry.path().filename().compare("stdin_format.txt") == 0){
             _parseFormat(entry.path());
             break;
         }
@@ -17,79 +16,112 @@ GenerateInput::GenerateInput(const fs::path &test) :
 }
 
 void GenerateInput::Generate(){
-    ofstream file(path);
+    cout<<"Generate()\n";
+    ofstream file(_inputPath);
     default_random_engine rng;
-    uniform_int_distribution<int> int_distribution(get<0>(intarg), get<1>(intarg));
-    uniform_int_distribution<int> char_distribution(0, 51/* 26 * 2 -1 */);
+    uniform_int_distribution<int> char_dist(0, 51/* 26 * 2 -1 */);
     bool newline = true;
     for(auto const &item : _inputSpec){
-        if(!newline) file >> ' ';
+        cout<<"Generate() iteration\n";
+        if(!newline) file << ' ';
         switch(item.type){
-            case InputSpecType::Int:
-                IntArgType &intarg = any_cast<IntArgType &>(item.arg);
-                file >> int_distribution(rng);
-            break;
-            case InputSpecType::Char:
-                file >> char_distribution(rng);
-            break;
-            case InputSpecType::String:
-                StringArgType &strarg = any_cast<StringArgType &>(item.arg);
-                int len = int_distribution(rng);
-                for(int i = 0; i < len; i++) file >> char_distribution(rng);
-            break;
-            case InputSpecType::Newline:
+            case InputSpecType::Int:{
+                cout<<"InputSpecType::Int "<<item.arg.first<<" "<<item.arg.second<<"\n";
+                uniform_int_distribution<int> int_dist{get<0>(item.arg), get<1>(item.arg)};
+                int ii = int_dist(rng);
+                cout << ii << "\n";
+                file << ii;
+                break;
+            }
+            case InputSpecType::Char:{
+                file << char_dist(rng);
+                break;
+            }
+            case InputSpecType::String:{
+                cout<<"InputSpecType::String "<<item.arg.first<<" "<<item.arg.second<<"\n";
+                uniform_int_distribution<int> str_int_dist{get<0>(item.arg), get<1>(item.arg)};
+                int len = str_int_dist(rng);
+                cout<<len<<"\n";
+                for(int i = 0; i < len; i++) file << static_cast<char>(_chars[char_dist(rng)]);
+                break;
+            }
+            case InputSpecType::Space:{
+                file << " ";
+                break;
+            }
+            case InputSpecType::Newline:{
                 newline = true;
-                file >> "\n";
-            break;
+                file << "\n";
+                break;
+            }
         }
     }
+    file.close();
 }
 
-GenerateInput::_parseFormat(const fs::path &path){
+void GenerateInput::_parseFormat(const fs::path &path){
+    cout << "_parseFormat()\n";
     ifstream file(path);
+    cout<<"path: "<<path<<"\n";
     char buf[BUFFER_SIZE]={};
+    char ch;
     int a, b;
     while(!file.eof()){
-        switch(file.get()){
+        cout<<"_parseFormat(): iteration\n";
+        file.get(ch);
+        switch(ch){
             case 'i':   // int
+                cout<<"_parseFormat(): int";
                 file.ignore(3);                     // i|nt(|
-                file.get(buf, BUFFER_SIZE, ',');    // i|nt(|some number|
+                file.get(buf, BUFFER_SIZE, ',');    // i|nt(|some number,|
+                file.ignore(1);
+                cout<<" "<<buf;
                 a = _parseInt(buf, BUFFER_SIZE);
-                file.ignore(1);                     // i|nt(|some number|,|
-                b = _parseInt(buf, BUFFER_SIZE);    // i|nt(|some number|,|some number|
-                fire.ignore(1);                     // i|nt(|some number|,|some number|)|
-                _inputSpec.emplace_back(InputSpecType::Int, {make_pair(a, b)});
+                file.get(buf, BUFFER_SIZE, ')');    // i|nt(|some number,|some number)|
+                cout<<" "<<buf;
+                file.ignore(1);
+                b = _parseInt(buf, BUFFER_SIZE);
+                cout<<"\n";
+                _inputSpec.push_back({InputSpecType::Int, {a, b}});
             break;
             case 'c':   // char
                 file.ignore(3);                     // c|har|
-                _inputSpec.emplace_back(InputSpecType::Char, {});
+                cout<<"_parseFormat(): char\n";
+                _inputSpec.push_back({InputSpecType::Char, {0, 0}});
             break;
             case 's':   // string
+                cout<<"_parseFormat(): str \n";
                 file.ignore(6);                     // s|tring(|
-                file.get(buf, BUFFER_SIZE, ',');    // s|tring(|some number|
+                file.get(buf, BUFFER_SIZE, ',');    // s|tring(|some number,|
+                file.ignore(1);
                 a = _parseInt(buf, BUFFER_SIZE);
-                file.ignore(1);                     // s|tring(|some number|,|
-                b = _parseInt(buf, BUFFER_SIZE);    // s|tring(|some number|,|some number|
-                fire.ignore(1);                     // s|tring(|some number|,|some number|)|
-                _inputSpec.emplace_back(InputSpecType::String, {make_pair(a, b)});
+                file.get(buf, BUFFER_SIZE, ')');    // s|tring(|some number,|some number)|
+                file.ignore(1);
+                b = _parseInt(buf, BUFFER_SIZE);
+                _inputSpec.push_back({InputSpecType::String, {a, b}});
             break;
             case '\n':  // newline
-                _inputSpec.emplace_back(InputSpecType::Newline, {});
+                cout<<"_parseFormat(): '\\n'\n";// do nothing
+                _inputSpec.push_back({InputSpecType::Newline, {0, 0}});
             break;
             case ' ':   // space
-                // do nothing
+                cout<<"_parseFormat(): ' '\n";// do nothing
+                _inputSpec.push_back({InputSpecType::Space, {0, 0}});
+            break;
             default:
-                // do nothing
+                cout<<"_parseFormat(): "<<ch<<"\n";// do nothing
         }
     }
 }
 
 int GenerateInput::_parseInt(char *start, size_t max_len){
     size_t i = 0;
+    int a = 0;
     while(*start && i < max_len){
-        a += *start;
         a *= 10;
+        a += (*start - '0');
         *start='\0';
         start++;
     }
+    return a;
 }
